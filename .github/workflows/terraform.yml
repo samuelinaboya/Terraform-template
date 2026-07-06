@@ -1,38 +1,64 @@
-name: Terraform
+name: "Terraform Multi-Cloud Automation"
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Terraform action'
+        description: "Select the Terraform action to run"
         required: true
-        default: 'plan'
+        default: "plan"
         type: choice
         options:
-        - plan
-        - apply
-        - destroy
+          - plan
+          - apply
+          - destroy
+      image_tag:
+        description: "Container image tag (optional)"
+        required: false
+        default: "latest"
+        type: string
+      directory:
+        description: "Root directory of the Terraform configuration (e.g., gcp/ or azure/)"
+        required: false
+        default: "."
+        type: string
 
 jobs:
   terraform:
-    name: Terraform
+    name: "TF ${{ github.event.inputs.action }} (${{ github.event.inputs.directory }})"
     runs-on: ubuntu-latest
+
+    # Maps variables to both standard Terraform environment variables
+    env:
+      TF_VAR_image_tag: ${{ github.event.inputs.image_tag }}
+      TF_WORKSPACE: ${{ github.event.inputs.directory == 'gcp' && 'gcp-prod' || 'azure-prod' }} # Example dynamic workspace switching
+
+    defaults:
+      run:
+        working-directory: ${{ github.event.inputs.directory }}
+
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+          # Authenticates GitHub to Terraform Cloud to trigger remote runs
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-    - name: Terraform Init
-      run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-    - name: Terraform Action
-      run: |
-        if [ "${{ github.event.inputs.action }}" == "plan" ]; then
-          terraform plan
-        elif [ "${{ github.event.inputs.action }}" == "apply" ]; then
-          terraform apply -auto-approve
-        elif [ "${{ github.event.inputs.action }}" == "destroy" ]; then
-          terraform destroy -auto-approve
-        fi
+      - name: Terraform Plan
+        if: github.event.inputs.action == 'plan'
+        run: terraform plan -input=false
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve -input=false
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -input=false

@@ -12,11 +12,6 @@ on:
           - plan
           - apply
           - destroy
-      image_tag:
-        description: "Container image tag (optional)"
-        required: false
-        default: "latest"
-        type: string
       workspace:
         description: "Select the target Azure Workspace"
         required: true
@@ -32,7 +27,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TF_VAR_image_tag: ${{ github.event.inputs.image_tag }}
       TF_WORKSPACE: ${{ github.event.inputs.workspace }}
 
     steps:

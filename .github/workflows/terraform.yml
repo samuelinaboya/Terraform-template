@@ -22,16 +22,25 @@ on:
         required: false
         default: "."
         type: string
+      workspace:
+        description: "Select the target Terraform Workspace"
+        required: true
+        default: "gcp-prod"
+        type: choice
+        options:
+          - gcp-prod
+          - gcp-dev
+          - azure-prod
+          - azure-dev
 
 jobs:
   terraform:
-    name: "TF ${{ github.event.inputs.action }} (${{ github.event.inputs.directory }})"
+    name: "TF ${{ github.event.inputs.action }} (${{ github.event.inputs.workspace }})"
     runs-on: ubuntu-latest
 
-    # Maps variables to both standard Terraform environment variables
     env:
       TF_VAR_image_tag: ${{ github.event.inputs.image_tag }}
-      TF_WORKSPACE: ${{ github.event.inputs.directory == 'gcp' && 'gcp-prod' || 'azure-prod' }} # Example dynamic workspace switching
+      TF_WORKSPACE: ${{ github.event.inputs.workspace }}
 
     defaults:
       run:
@@ -45,7 +54,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.7.0"
-          # Authenticates GitHub to Terraform Cloud to trigger remote runs
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
       - name: Terraform Init
